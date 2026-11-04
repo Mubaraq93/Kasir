@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Pembuat Lisensi Kasir Pro</title>
+<style>
+:root{--navy:#0b2545;--blue:#1d4ed8;--green:#15803d;--red:#b91c1c;--bg:#eef1f5;--line:#e2e8f0;--mut:#64748b}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:#0f172a}
+header{background:var(--navy);color:#fff;padding:14px 16px;font-weight:800}
+main{max-width:560px;margin:0 auto;padding:12px}
+.card{background:#fff;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(15,23,42,.06)}
+h3{margin:0 0 8px;font-size:16px}
+label{display:block;font-size:12.5px;font-weight:600;color:var(--mut);margin:12px 0 4px}
+input,select,textarea{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font:inherit;background:#fff;min-height:42px}
+textarea{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+button{border:0;border-radius:10px;padding:10px 14px;background:var(--blue);color:#fff;font:inherit;font-weight:600;cursor:pointer;min-height:42px}
+button.g{background:#fff;color:#0f172a;border:1.5px solid var(--line)}button.ok{background:var(--green)}button.r{background:var(--red)}button.s{min-height:34px;padding:5px 10px;font-size:13.5px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.note{background:#fffbeb;border:1px solid #fde68a;color:#78350f;border-radius:10px;padding:9px 11px;font-size:13px;margin-top:10px}
+.info{background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;border-radius:10px;padding:9px 11px;font-size:13px;margin-top:10px}
+.bad{background:#fef2f2;border:1px solid #fecaca;color:#7f1d1d;border-radius:10px;padding:9px 11px;font-size:13px;margin-top:10px}
+.item{padding:10px 0;border-bottom:1px solid var(--line)}.item:last-child{border:0}
+small{color:var(--mut)}[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header>Pembuat Lisensi Kasir Pro <small style="color:#cbd5e1;font-weight:400">(khusus penjual)</small></header>
+<main>
+
+<div class="card" id="setup" hidden>
+  <h3>Pengaturan awal (sekali saja)</h3>
+  <div class="info" style="margin-top:0">Tempel <b>kunci rahasia</b> dari file <code>kunci-rahasia-lisensi.txt</code>. Kunci disimpan hanya di browser ini dan tidak dikirim ke mana pun.</div>
+  <label>Kunci rahasia</label>
+  <textarea id="keyIn" rows="4" placeholder='{"kty":"EC","crv":"P-256",...}'></textarea>
+  <div class="row" style="margin-top:10px"><button id="keySave">Simpan kunci</button></div>
+  <div id="keyMsg"></div>
+</div>
+
+<div id="main" hidden>
+  <div class="card">
+    <h3>Buat kode lisensi</h3>
+    <label style="margin-top:0">ID perangkat pelanggan</label>
+    <input id="did" placeholder="KP-XXXX-XXXX" autocapitalize="characters" autocomplete="off" style="font-family:ui-monospace,Menlo,monospace;font-weight:700;letter-spacing:1px">
+    <label>Nama pelanggan / toko (untuk catatan Anda)</label>
+    <input id="cname" placeholder="mis. Toko Berkah, Pak Budi">
+    <label>Masa berlaku</label>
+    <select id="dur">
+      <option value="1">1 bulan</option><option value="3">3 bulan</option><option value="6">6 bulan</option>
+      <option value="12" selected>1 tahun</option><option value="24">2 tahun</option><option value="life">Seumur hidup</option>
+    </select>
+    <label style="display:flex;gap:8px;align-items:center;font-weight:500;color:#0f172a"><input type="checkbox" id="chain" checked style="width:auto;min-height:0"> Sambung dari masa berlaku sebelumnya (kalau pelanggan ini sudah pernah dibuatkan dan belum habis)</label>
+    <div class="row" style="margin-top:12px"><button id="mk" class="ok">Buat kode</button></div>
+    <div id="mkMsg"></div>
+    <div id="result" hidden>
+      <label>Kode lisensi (kirim ke pelanggan)</label>
+      <textarea id="code" rows="4" readonly></textarea>
+      <div class="row" style="margin-top:8px"><button id="copy">Salin kode</button><button id="wa" class="g">Kirim via WhatsApp</button></div>
+      <div id="resInfo" class="info"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between"><h3 style="margin:0">Catatan pelanggan</h3><button class="g s" id="csv">Ekspor CSV</button></div>
+    <div id="log"></div>
+  </div>
+
+  <div class="card">
+    <h3>Kunci</h3>
+    <small>Kunci rahasia tersimpan di browser ini. Jangan unggah file kunci ke GitHub atau bagikan ke siapa pun.</small>
+    <div class="row" style="margin-top:10px"><button class="r s" id="keyDel">Hapus kunci dari browser ini</button></div>
+  </div>
+</div>
+</main>
+
+<script>
+"use strict";
+const PUB={"kty":"EC","crv":"P-256","x":"4HUvBC2erj6hnX-PqWln_wCNWKAHFbl_71hHjvRXPN0","y":"it_l3gwzlqpB1en13S8OlR2Acvskbu7YYHd-IuNTpKs"};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate());
+const fromYmd=e=>new Date(+e.slice(0,4),+e.slice(4,6)-1,+e.slice(6,8));
+const fmtD=e=>e.startsWith('9999')?'seumur hidup':pad(+e.slice(6,8))+'/'+e.slice(4,6)+'/'+e.slice(0,4);
+const b64u=u8=>btoa(String.fromCharCode(...u8)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const ID_RE=/^KP-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
+const get=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch{return d}};
+const set=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{alert('Penyimpanan browser penuh/tidak tersedia')}};
+let privKey=null;
+
+function addMonths(d,n){const r=new Date(d.getFullYear(),d.getMonth()+n,1);const last=new Date(r.getFullYear(),r.getMonth()+1,0).getDate();r.setDate(Math.min(d.getDate(),last));return r}
+async function loadKey(){
+  const jwk=get('kpl_priv',null);if(!jwk)return false;
+  try{privKey=await crypto.subtle.importKey('jwk',jwk,{name:'ECDSA',namedCurve:'P-256'},false,['sign']);return true}catch{return false}
+}
+function show(){const has=!!privKey;$('#setup').hidden=has;$('#main').hidden=!has;if(has)renderLog()}
+
+$('#keySave').onclick=async()=>{
+  const m=$('#keyMsg');
+  if(!window.crypto||!crypto.subtle){m.className='bad';m.textContent='Halaman ini harus dibuka lewat alamat https:// (mis. github.io).';return}
+  try{
+    const txt=$('#keyIn').value;const mm=txt.match(/\{[^{}]*"d"[^{}]*\}/);if(!mm)throw new Error('Kunci tidak ditemukan pada teks yang ditempel.');
+    const jwk=JSON.parse(mm[0]);
+    if(jwk.x!==PUB.x||jwk.y!==PUB.y)throw new Error('Kunci ini tidak cocok dengan aplikasi kasir Anda.');
+    await crypto.subtle.importKey('jwk',jwk,{name:'ECDSA',namedCurve:'P-256'},false,['sign']);
+    set('kpl_priv',jwk);$('#keyIn').value='';await loadKey();show();
+  }catch(e){m.className='bad';m.textContent=e.message||'Kunci tidak valid.'}
+};
+$('#keyDel').onclick=()=>{if(confirm('Hapus kunci rahasia dari browser ini? Anda harus menempelnya lagi untuk membuat kode.')){localStorage.removeItem('kpl_priv');privKey=null;show()}};
+
+function renderLog(){
+  const log=get('kpl_log',[]);
+  $('#log').innerHTML=log.length?log.map((l,i)=>`<div class="item"><b>${esc(l.name||'(tanpa nama)')}</b><br><small>${esc(l.id)} · berlaku sampai ${fmtD(l.exp)} · dibuat ${esc(l.at)}</small>
+    <div class="row" style="margin-top:6px"><button class="g s" data-c="${i}">Salin kode</button><button class="g s" data-r="${i}">Perpanjang</button></div></div>`).join(''):'<small>Belum ada kode yang dibuat.</small>';
+}
+$('#log').onclick=async e=>{
+  const log=get('kpl_log',[]);
+  const c=e.target.closest('[data-c]'),r=e.target.closest('[data-r]');
+  if(c){const l=log[+c.dataset.c];try{await navigator.clipboard.writeText(l.code);c.textContent='Tersalin'}catch{prompt('Salin kode ini:',l.code)}}
+  if(r){const l=log[+r.dataset.r];$('#did').value=l.id;$('#cname').value=l.name||'';window.scrollTo(0,0);$('#did').focus()}
+};
+
+$('#mk').onclick=async()=>{
+  const m=$('#mkMsg');$('#result').hidden=true;
+  const id=$('#did').value.trim().toUpperCase().replace(/\s+/g,'');
+  if(!ID_RE.test(id)){m.className='bad';m.textContent='ID perangkat tidak valid. Contoh: KP-7F3A-92BD (huruf O dan angka 0/1 tidak dipakai).';return}
+  const dur=$('#dur').value;let exp;
+  if(dur==='life')exp='99991231';
+  else{
+    let base=new Date();base.setHours(0,0,0,0);
+    if($('#chain').checked){
+      const prev=get('kpl_log',[]).filter(l=>l.id===id&&!l.exp.startsWith('9999')).map(l=>l.exp).sort().pop();
+      if(prev){const pd=fromYmd(prev);if(pd>base)base=pd}
+    }
+    exp=ymd(addMonths(base,+dur));
+  }
+  try{
+    const sig=new Uint8Array(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},privKey,new TextEncoder().encode('KPL1|'+id+'|'+exp)));
+    const code='KPL1.'+id+'.'+exp+'.'+b64u(sig);
+    const now=new Date(),at=pad(now.getDate())+'/'+pad(now.getMonth()+1)+'/'+now.getFullYear();
+    const log=get('kpl_log',[]);log.unshift({id,name:$('#cname').value.trim(),exp,code,at});set('kpl_log',log);
+    m.textContent='';m.className='';
+    $('#code').value=code;$('#result').hidden=false;
+    $('#resInfo').textContent='Kode untuk '+id+', berlaku sampai '+fmtD(exp)+'. Kode ini hanya bisa dipakai di perangkat dengan ID tersebut.';
+    renderLog();
+  }catch(e){m.className='bad';m.textContent='Gagal membuat kode: '+(e.message||e)}
+};
+$('#copy').onclick=async()=>{try{await navigator.clipboard.writeText($('#code').value);$('#copy').textContent='Tersalin'}catch{$('#code').select();document.execCommand('copy')}};
+$('#wa').onclick=()=>{
+  const id=$('#did').value.trim().toUpperCase();
+  const t='Kode lisensi Kasir Pro untuk perangkat '+id+':\n\n'+$('#code').value+'\n\nCara aktivasi: buka aplikasi, menu Setelan, bagian Lisensi, tempel kode lalu tekan Aktifkan.';
+  window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank');
+};
+$('#csv').onclick=()=>{
+  const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+  const rows=['nama,id_perangkat,berlaku_sampai,dibuat'].concat(get('kpl_log',[]).map(l=>[q(l.name),l.id,l.exp,l.at].join(',')));
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+rows.join('\n')],{type:'text/csv'}));a.download='catatan-lisensi.csv';document.body.appendChild(a);a.click();a.remove();
+};
+
+(async()=>{await loadKey();show()})();
+</script>
+</body>
+</html>
